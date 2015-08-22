@@ -1193,6 +1193,9 @@
                     case "k":
                         doClick(buttons.code);
                         break;
+                    case "s":
+                        doClick(buttons.spoiler);
+                        break;
                     case "g":
                         doClick(buttons.image);
                         break;
@@ -1391,6 +1394,7 @@
             }), group2);
             buttons.quote = makeButton("wmd-quote-button", "<%= I18n.t('components.markdown_editor.blockquoute.button_title', default: 'Blockquote (Ctrl+Q)') %>", "fa fa-quote-left", bindCommand("doBlockquote"), group2);
             buttons.code = makeButton("wmd-code-button", "<%= I18n.t('components.markdown_editor.code_sample.button_title', default: 'Code Sample (Ctrl+K)') %>", "fa fa-code", bindCommand("doCode"), group2);
+            buttons.spoiler = makeButton("wmd-spoiler-button", "<%= I18n.t('components.markdown_editor.spoiler.button_title', default: 'Spoiler (Ctrl+S)') %>", "fa fa-eye-slash", bindCommand("doSpoiler"), group2);
 
             group3 = makeGroup(3);
             buttons.ulist = makeButton("wmd-ulist-button", "<%= I18n.t('components.markdown_editor.bulleted_list.button_title', default: 'Bulleted List (Ctrl+U)') %>", "fa fa-list-ul", bindCommand(function (chunk, postProcessing) {
@@ -1402,14 +1406,17 @@
             buttons.heading = makeButton("wmd-heading-button", "<%= I18n.t('components.markdown_editor.heading.button_title', default: 'Heading (Ctrl+H)') %>", "fa fa-font", bindCommand("doHeading"), group3);
 
             group4 = makeGroup(4);
-            buttons.undo = makeButton("wmd-undo-button", "<%= I18n.t('components.markdown_editor.undo.button_title', default: 'Undo (Ctrl+Z)') %>", "fa fa-undo", null, group4);
+            buttons.hr = makeButton("wmd-hr-button", "<%= I18n.t('components.markdown_editor.hr.button_title', default: 'Horizontal rule (Ctrl+R)') %>", "fa fa-arrows-h", bindCommand("doHorizontalRule"), group4);
+
+            group5 = makeGroup(5);
+            buttons.undo = makeButton("wmd-undo-button", "<%= I18n.t('components.markdown_editor.undo.button_title', default: 'Undo (Ctrl+Z)') %>", "fa fa-undo", null, group5);
             buttons.undo.execute = function (manager) { if (manager) manager.undo(); };
 
             var redoTitle = /win/.test(nav.platform.toLowerCase()) ?
                 "<%= I18n.t('components.markdown_editor.redo.button_title.win', default: 'Redo (Ctrl+Y)') %>" :
                 "<%= I18n.t('components.markdown_editor.redo.button_title.other', default: 'Redo (Ctrl+Shift+Z)') %>"; // mac and other non-Windows platforms
 
-            buttons.redo = makeButton("wmd-redo-button", redoTitle, "fa fa-repeat", null, group4);
+            buttons.redo = makeButton("wmd-redo-button", redoTitle, "fa fa-repeat", null, group5);
             buttons.redo.execute = function (manager) { if (manager) manager.redo(); };
 
             if (helpOptions) {
@@ -1417,7 +1424,7 @@
                 group5.className = group5.className + " pull-right";
                 var helpButton = document.createElement("button");
                 var helpButtonImage = document.createElement("i");
-                helpButtonImage.className = "fa fa-info";
+                helpButtonImage.className = "fa fa-question";
                 helpButton.appendChild(helpButtonImage);
                 helpButton.className = "btn btn-info btn-sm";
                 helpButton.id = "wmd-help-button" + postfix;
@@ -1943,6 +1950,60 @@
                 chunk.startTag = chunk.endTag = "`";
                 if (!chunk.selection) {
                     chunk.selection = "enter code here";
+                }
+            }
+            else if (chunk.endTag && !chunk.startTag) {
+                chunk.before += chunk.endTag;
+                chunk.endTag = "";
+            }
+            else {
+                chunk.startTag = chunk.endTag = "";
+            }
+        }
+    };
+
+    commandProto.doSpoiler = function (chunk, postProcessing) {
+
+        var hasTextBefore = /\S[ ]*$/.test(chunk.before);
+        var hasTextAfter = /^[ ]*\S/.test(chunk.after);
+
+        // Use '-?-' markdown if the selection is on its own
+        // line or is multiline.
+        if ((!hasTextAfter && !hasTextBefore) || /\n/.test(chunk.selection)) {
+
+            var nLinesBack = 1;
+            var nLinesForward = 1;
+
+            chunk.findTags(/-\?-\n/, /\n-\?-/);
+
+            if (!chunk.startTag && !chunk.endTag) {
+                chunk.startTag = "-?-\n";
+                chunk.endTag = "\n-?-";
+                if (!chunk.selection) {
+                    chunk.selection = "enter spoiler here";
+                }
+            }
+            else if (chunk.endTag && !chunk.startTag) {
+                chunk.before += chunk.endTag;
+                chunk.endTag = "";
+            }
+            else {
+                chunk.startTag = chunk.endTag = "";
+            }
+
+            chunk.skipLines(nLinesBack, nLinesForward);
+        }
+        else {
+            // Use '-?' and '?-' to delimit the spoiler block.
+
+            chunk.trimWhitespace();
+            chunk.findTags(/-\?/, /\?-/);
+
+            if (!chunk.startTag && !chunk.endTag) {
+                chunk.startTag = "-?";
+                chunk.endTag = "?-";
+                if (!chunk.selection) {
+                    chunk.selection = "enter spoiler here";
                 }
             }
             else if (chunk.endTag && !chunk.startTag) {
